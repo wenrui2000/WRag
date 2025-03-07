@@ -31,6 +31,14 @@ class Settings(BaseSettings):
     qdrant_url: str = Field(default="http://qdrant:6333", description="Qdrant host URL")
     qdrant_collection_name: str = Field(default="semantic_search", description="Qdrant collection name")
     
+    # MySQL settings
+    mysql_host: str = Field(default="localhost", description="MySQL host")
+    mysql_user: str = Field(default="root", description="MySQL username")
+    mysql_password: str = Field(default="", description="MySQL password")
+    mysql_database: str = Field(default="wrag", description="MySQL database name")
+    mysql_port: int = Field(default=3306, description="MySQL port")
+    mysql_enabled: bool = Field(default=False, description="Whether to use MySQL for document storage")
+    
     # LLM settings
     generator: str = Field(default="ollama", description="Generator to use")
     use_ollama: bool = Field(default=True, description="Use Ollama for LLM")
@@ -80,7 +88,7 @@ class Settings(BaseSettings):
         description="Raw YAML configuration"
     )
 
-    @field_validator('log_level', 'wrag_log_level')
+    @field_validator('log_level', 'haystack_log_level')
     @classmethod
     def validate_log_level(cls, v: str) -> str:
         valid_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
@@ -152,6 +160,12 @@ def yaml_to_env_vars(yaml_config: Dict[str, Any]) -> None:
         "elasticsearch.password": "ELASTICSEARCH_PASSWORD",
         "qdrant.url": "QDRANT_URL",
         "qdrant.collection_name": "QDRANT_COLLECTION_NAME",
+        "mysql.host": "MYSQL_HOST",
+        "mysql.user": "MYSQL_USER",
+        "mysql.password": "MYSQL_PASSWORD",
+        "mysql.database": "MYSQL_DATABASE",
+        "mysql.port": "MYSQL_PORT",
+        "mysql.enabled": "MYSQL_ENABLED",
         "llm.generator": "GENERATOR",
         "llm.use_ollama": "USE_OLLAMA",
         "llm.ollama_api_url": "OLLAMA_API_URL",

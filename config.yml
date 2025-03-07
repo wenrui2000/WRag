@@ -11,6 +11,15 @@ qdrant:
   url: "http://qdrant:6333"
   collection_name: "semantic_search"
 
+# MySQL settings
+mysql:
+  host: "mysql"
+  user: "root"
+  password: "rootpassword"
+  database: "wrag"
+  port: 3306
+  enabled: true
+
 # LLM settings
 llm:
   generator: "ollama"

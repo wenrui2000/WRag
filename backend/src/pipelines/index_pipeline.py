@@ -23,6 +23,7 @@ from haystack_integrations.document_stores.qdrant import QdrantDocumentStore
 
 from common.config import settings
 from common.document_store import get_qdrant_store
+from indexing.mysql_document_writer import MySQLDocumentWriter, MySQLSourceDocumentWriter
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,9 @@ def create_index_pipeline(
     
     Returns:
         Pipeline: The configured Haystack pipeline
+        
+    Raises:
+        Exception: If MySQL integration is enabled but fails to initialize or connect
     """
     logger.info("Creating indexing pipeline programmatically")
     
@@ -112,6 +116,31 @@ def create_index_pipeline(
     # Create Qdrant writer
     qdrant_writer = DocumentWriter(document_store=qdrant_store, policy=writer_policy)
     
+    # Create MySQL writers if enabled
+    mysql_source_writer = None
+    mysql_document_writer = None
+    mysql_enabled = settings.mysql_enabled
+    
+    if mysql_enabled:
+        logger.info(f"Creating MySQL document writers for host: {settings.mysql_host}")
+        # No try/except here - if MySQL fails to initialize, we want the pipeline to fail
+        mysql_source_writer = MySQLSourceDocumentWriter(
+            host=settings.mysql_host,
+            user=settings.mysql_user,
+            password=settings.mysql_password,
+            database=settings.mysql_database,
+            port=settings.mysql_port
+        )
+        
+        mysql_document_writer = MySQLDocumentWriter(
+            host=settings.mysql_host,
+            user=settings.mysql_user,
+            password=settings.mysql_password,
+            database=settings.mysql_database,
+            port=settings.mysql_port
+        )
+        logger.info("MySQL document writers created successfully")
+    
     # Add components to pipeline
     logger.info("Adding components to pipeline...")
     pipeline.add_component("file_router", file_router)
@@ -124,6 +153,13 @@ def create_index_pipeline(
     pipeline.add_component("es_writer", es_writer)
     pipeline.add_component("document_embedder", document_embedder)
     pipeline.add_component("qdrant_writer", qdrant_writer)
+    
+    # Add MySQL components if enabled
+    if mysql_enabled and mysql_source_writer and mysql_document_writer:
+        # No try/except here - if MySQL components fail to be added, we want the pipeline to fail
+        pipeline.add_component("mysql_source_writer", mysql_source_writer)
+        pipeline.add_component("mysql_document_writer", mysql_document_writer)
+        logger.info("MySQL components added to pipeline")
     
     # Connect the components
     logger.info("Connecting pipeline components...")
@@ -138,8 +174,20 @@ def create_index_pipeline(
     pipeline.connect("markdown_converter.documents", "document_joiner.documents")
     pipeline.connect("pdf_converter.documents", "document_joiner.documents")
     
-    # Process and clean documents
-    pipeline.connect("document_joiner.documents", "document_cleaner.documents")
+    # Process flow with MySQL integration (if enabled)
+    if mysql_enabled and mysql_source_writer and mysql_document_writer:
+        # First save original documents to source_documents table
+        # This is crucial for foreign key relationships to work correctly
+        pipeline.connect("document_joiner.documents", "mysql_source_writer.documents")
+        
+        # Then process the written documents with source_id properly set
+        pipeline.connect("mysql_source_writer.written_documents", "document_cleaner.documents")
+        logger.info("Connected document_joiner -> mysql_source_writer -> document_cleaner")
+    else:
+        # Standard path if MySQL is not enabled
+        pipeline.connect("document_joiner.documents", "document_cleaner.documents")
+    
+    # Continue with standard processing
     pipeline.connect("document_cleaner.documents", "document_splitter.documents")
     
     # Write to Elasticsearch
@@ -148,6 +196,12 @@ def create_index_pipeline(
     # Embed and write to Qdrant (separate flow for vector search)
     pipeline.connect("document_splitter.documents", "document_embedder.documents")
     pipeline.connect("document_embedder.documents", "qdrant_writer.documents")
+    
+    # Connect MySQL document writer to the embedded documents (if enabled)
+    if mysql_enabled and mysql_source_writer and mysql_document_writer:
+        # No try/except here - if MySQL connection fails, we want the pipeline to fail
+        pipeline.connect("document_embedder.documents", "mysql_document_writer.documents")
+        logger.info("Connected document_embedder to mysql_document_writer")
     
     logger.info("Pipeline connections established.")
     

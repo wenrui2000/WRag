@@ -108,21 +108,38 @@ class IndexingService:
         logger.info("Indexing service initialized with dual indexing to Elasticsearch and Qdrant")
 
     async def index_file(self, file: UploadFile) -> Dict:
+        """
+        Index a file using the Haystack pipeline.
+        
+        The file is saved to disk and processed through the indexing pipeline,
+        which includes document conversion, cleaning, splitting, embedding, and storage.
+        
+        If MySQL integration is enabled, this will write to MySQL as a MANDATORY step.
+        Any MySQL errors during indexing will cause the entire process to fail.
+        
+        Args:
+            file: The uploaded file to index
+            
+        Returns:
+            Dict containing information about the indexing process
+            
+        Raises:
+            Exception: Any error during the indexing process, including MySQL errors
+        """
         # Save file to disk
         contents = await file.read()
         saved_path = self.save_uploaded_file(file.filename, contents)
         
-        # Run the indexing pipeline
+        # Get document count before indexing
+        es_count_before = len(self.document_store.filter_documents())
+        qdrant_count_before = self._get_qdrant_document_count()
+        
         try:
-            # Get document count before indexing
-            es_count_before = len(self.document_store.get_all_documents())
-            qdrant_count_before = self._get_qdrant_document_count()
-            
             # Run the indexing pipeline
             result = self.pipeline.run({"file_router": {"sources": [saved_path]}})
             
             # Get document count after indexing to determine the actual number of documents indexed
-            es_count_after = len(self.document_store.get_all_documents())
+            es_count_after = len(self.document_store.filter_documents())
             qdrant_count_after = self._get_qdrant_document_count()
             
             # Calculate the difference to get the actual number of documents indexed
@@ -143,6 +160,13 @@ class IndexingService:
             }
         except Exception as e:
             logging.error(f"Error indexing file {file.filename}: {str(e)}")
+            
+            # Check if it's a MySQL error
+            if "MySQL" in str(e):
+                logging.critical(f"CRITICAL MySQL error during indexing: {str(e)}")
+                # Re-raise the exception to indicate this is a critical failure
+                raise
+                
             return {
                 "filename": file.filename,
                 "file_path": saved_path,
@@ -160,9 +184,9 @@ class IndexingService:
         try:
             # Attempt to count documents in Qdrant
             # First, check if the collection exists and is initialized
-            collection_info = self.qdrant_store.client.get_collection(collection_name=self.qdrant_store.collection_name)
+            collection_info = self.qdrant_store.client.get_collection(collection_name=self.qdrant_store.index)
             if collection_info:
-                count_result = self.qdrant_store.client.count(collection_name=self.qdrant_store.collection_name)
+                count_result = self.qdrant_store.client.count(collection_name=self.qdrant_store.index)
                 return count_result.count
             return 0
         except Exception as e:
@@ -172,7 +196,19 @@ class IndexingService:
     def index_files(self, path: Optional[str] = None):
         """
         Index all files in the specified path, or rescan and index all files in the default storage path
-        to both Elasticsearch (for full-text search) and Qdrant (for embedding-based search)
+        to both Elasticsearch (for full-text search) and Qdrant (for embedding-based search).
+        
+        If MySQL integration is enabled, this will write to MySQL as a MANDATORY step.
+        Any MySQL errors during indexing will cause the entire process to fail.
+        
+        Args:
+            path: Optional path to index files from. If not provided, all files in the default storage path will be indexed.
+            
+        Returns:
+            List of dictionaries containing information about the indexing process for each file
+            
+        Raises:
+            Exception: Any MySQL error during the indexing process
         """
         file_paths = []
         
@@ -187,14 +223,14 @@ class IndexingService:
         for file_path in file_paths:
             try:
                 # Get document count before indexing
-                es_count_before = len(self.document_store.get_all_documents())
+                es_count_before = len(self.document_store.filter_documents())
                 qdrant_count_before = self._get_qdrant_document_count()
                 
                 # Run the indexing pipeline
                 result = self.pipeline.run({"file_router": {"sources": [file_path]}})
                 
                 # Get document count after indexing
-                es_count_after = len(self.document_store.get_all_documents())
+                es_count_after = len(self.document_store.filter_documents())
                 qdrant_count_after = self._get_qdrant_document_count()
                 
                 # Calculate the difference
@@ -214,6 +250,13 @@ class IndexingService:
                 })
             except Exception as e:
                 logging.error(f"Error indexing file {file_path}: {str(e)}")
+                
+                # Check if it's a MySQL error
+                if "MySQL" in str(e):
+                    logging.critical(f"CRITICAL MySQL error during indexing: {str(e)}")
+                    # Re-raise the exception to indicate this is a critical failure
+                    raise
+                
                 results.append({
                     "file_path": file_path,
                     "error": str(e),

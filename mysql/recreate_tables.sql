@@ -1,11 +1,9 @@
--- Create database if it doesn't exist
-CREATE DATABASE IF NOT EXISTS wrag;
+-- Script to recreate tables with auto-increment IDs
 USE wrag;
 
--- Set root password and grant permissions for all hosts
-ALTER USER 'root'@'%' IDENTIFIED BY 'rootpassword';
-GRANT ALL PRIVILEGES ON wrag.* TO 'root'@'%';
-FLUSH PRIVILEGES;
+-- Drop existing tables in the correct order
+DROP TABLE IF EXISTS wrag_documents;
+DROP TABLE IF EXISTS source_documents;
 
 -- Table to store original documents and metadata
 CREATE TABLE IF NOT EXISTS source_documents (
@@ -29,4 +27,9 @@ CREATE TABLE IF NOT EXISTS wrag_documents (
     creation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX(file_path),
     FOREIGN KEY (file_path) REFERENCES source_documents(file_path) ON DELETE CASCADE
-) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; 
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Verify tables were created
+SHOW TABLES;
+DESCRIBE source_documents;
+DESCRIBE wrag_documents; 
