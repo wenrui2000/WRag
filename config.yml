@@ -1,0 +1,49 @@
+# Haystack RAG Application Configuration
+
+# Elasticsearch settings
+elasticsearch:
+  url: "http://elasticsearch:9200"
+  user: "elastic"
+  password: "YourSecurePass123!"
+
+# Qdrant settings
+qdrant:
+  url: "http://qdrant:6333"
+  collection_name: "semantic_search"
+
+# LLM settings
+llm:
+  generator: "ollama"
+  use_ollama: true
+  ollama_api_url: "http://ollama:11434"
+  ollama_models:
+    - "deepseek-r1:1.5b"
+    - "deepseek-r1:7b" 
+
+# Embedding settings
+embedding:
+  model: "intfloat/multilingual-e5-base"
+  dim: 768
+
+# Document processing settings
+document:
+  split_by: "word"
+  split_length: 250
+  split_overlap: 30
+
+# Application settings
+app:
+  index_on_startup: true
+  pipelines_from_yaml: false
+
+# Logging settings
+logging:
+  level: "INFO"
+  haystack_level: "INFO"
+  tokenizers_parallelism: false
+
+# Docker and build settings
+docker:
+  ollama_models:
+    - "deepseek-r1:1.5b"
+    - "deepseek-r1:7b" 

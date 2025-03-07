@@ -1,0 +1,59 @@
+Thank you for installing {{ .Chart.Name }}.
+
+Your release is named {{ .Release.Name }} in the {{ .Release.Namespace }} namespace.
+
+To learn more about the release, try:
+
+  $ helm status {{ .Release.Name }}
+  $ helm get all {{ .Release.Name }}
+{{ if .Values.ingress.enabled }}
+  {{- range $host := .Values.ingress.hosts }}
+    {{- if $host.host }}
+The application can be accessed at:
+      {{- range $path := $host.paths }}
+  - http{{- if $.Values.ingress.tls }}s{{- end }}://{{ $host.host }}{{ $path.path }}
+      {{- end }}
+    {{- else }}
+The application can be accessed through your cluster's ingress at:
+      {{- range $path := $host.paths }}
+  - {{ $path.path }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{ else if .Values.gkeGateway.enabled }}
+The application is exposed through GKE Gateway. 
+{{- if .Values.gkeGateway.hosts }}
+The application can be accessed at:
+  {{- range $host := .Values.gkeGateway.hosts }}
+  - http://{{ $host }}
+  {{- end }}
+{{- else }}
+The application will accept traffic from any host.
+{{- end }}
+{{ else }}
+
+The application can be accessed using port-forwarding. Run these commands in separate terminals:
+
+# API gateway
+kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "app.fullname" . }}-gateway-api-gw 8080:8080
+
+# Frontend component
+kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "app.fullname" . }}-frontend 3000:3000
+
+# Query API
+kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "app.fullname" . }}-backend-query 8002:8002
+
+# Indexing API
+kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "app.fullname" . }}-backend-indexing 8001:8001
+
+# OpenSearch (requires authentication)
+kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "app.fullname" . }}-search-opensearch 9200:9200
+
+Then access the application via: http://localhost:8080
+{{- end }}
+
+{{- if eq .Values.global.environment "development" }}
+NOTE: You are running in development mode.
+{{- end }}
+
+For troubleshooting and configuration details, please refer to the README.md file.

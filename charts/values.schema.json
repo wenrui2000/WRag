@@ -1,0 +1,611 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": ["global", "search", "backend", "frontend", "apiGateway", "ingress", "gkeGateway", "persistence"],
+    "properties": {
+      "global": {
+        "type": "object",
+        "required": ["environment", "image", "secrets"],
+        "properties": {
+          "environment": {
+            "type": "string",
+            "enum": ["development", "staging", "production"]
+          },
+          "image": {
+            "type": "object",
+            "required": ["registryPath", "pullPolicy"],
+            "properties": {
+              "registryPath": { "type": "string" },
+              "pullPolicy": {
+                "type": "string",
+                "enum": ["Always", "IfNotPresent", "Never"]
+              }
+            }
+          },
+          "secrets": {
+            "type": "object",
+            "required": ["useExternalSecrets", "name", "opensearch", "openai"],
+            "properties": {
+              "useExternalSecrets": { "type": "boolean" },
+              "name": { "type": "string" },
+              "opensearch": {
+                "type": "object",
+                "required": ["adminUser", "adminPassword"],
+                "properties": {
+                  "adminUser": { "type": "string" },
+                  "adminPassword": { "type": "string" }
+                }
+              },
+              "openai": {
+                "type": "object",
+                "required": ["apiKey"],
+                "properties": {
+                  "apiKey": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "search": {
+        "type": "object",
+        "required": ["opensearch"],
+        "properties": {
+          "opensearch": {
+            "type": "object",
+            "required": ["enabled", "replicas", "image", "service", "resources", "volumeClaimTemplates", "securityContext", "podSecurityContext", "config", "readinessProbe", "livenessProbe"],
+            "properties": {
+              "enabled": { "type": "boolean" },
+              "replicas": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "image": {
+                "type": "object",
+                "required": ["imageName", "tag", "pullPolicy"],
+                "properties": {
+                  "imageName": { "type": "string" },
+                  "tag": { "type": "string" },
+                  "pullPolicy": { 
+                    "type": "string",
+                    "enum": ["Always", "IfNotPresent", "Never"]
+                  }
+                }
+              },
+              "service": {
+                "type": "object",
+                "required": ["ports", "type"],
+                "properties": {
+                  "ports": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["port", "targetPort", "name"],
+                      "properties": {
+                        "port": { "type": "integer" },
+                        "targetPort": { "type": "integer" },
+                        "name": { "type": "string" }
+                      }
+                    }
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["ClusterIP", "NodePort", "LoadBalancer"]
+                  },
+                  "clusterIP": { "type": "string" }
+                }
+              },
+              "volumeClaimTemplates": {
+                "type": "object",
+                "required": ["size", "storageClass"],
+                "properties": {
+                  "size": { "type": "string", "pattern": "^[0-9]+Gi$" },
+                  "storageClass": { "type": "string" }
+                }
+              },
+              "securityContext": {
+                "type": "object",
+                "properties": {
+                  "runAsUser": { "type": "integer" }
+                }
+              },
+              "podSecurityContext": {
+                "type": "object",
+                "properties": {
+                  "fsGroup": { "type": "integer" }
+                }
+              },
+              "config": {
+                "type": "object",
+                "properties": {
+                  "javaOpts": { "type": "string" }
+                }
+              },
+              "readinessProbe": {
+                "type": "object",
+                "properties": {
+                  "tcpSocket": {
+                    "type": "object",
+                    "properties": {
+                      "port": {
+                        "type": ["string", "integer"],
+                        "description": "Can be port number or named port"
+                      }
+                    }
+                  },
+                  "initialDelaySeconds": { "type": "integer" },
+                  "periodSeconds": { "type": "integer" },
+                  "timeoutSeconds": { "type": "integer" },
+                  "failureThreshold": { "type": "integer" }
+                }
+              },
+              "livenessProbe": {
+                "type": "object",
+                "properties": {
+                  "tcpSocket": {
+                    "type": "object",
+                    "properties": {
+                      "port": {
+                        "type": ["string", "integer"],
+                        "description": "Can be port number or named port"
+                      }
+                    }
+                  },
+                  "initialDelaySeconds": { "type": "integer" },
+                  "periodSeconds": { "type": "integer" },
+                  "timeoutSeconds": { "type": "integer" },
+                  "failureThreshold": { "type": "integer" }
+                }
+              },
+              "resources": {
+                "type": "object",
+                "required": ["requests", "limits"],
+                "properties": {
+                  "requests": {
+                    "type": "object",
+                    "required": ["memory", "cpu"],
+                    "properties": {
+                      "memory": { "type": "string" },
+                      "cpu": { "type": "string" },
+                      "ephemeral-storage": { "type": "string" }
+                    }
+                  },
+                  "limits": {
+                    "type": "object",
+                    "required": ["memory", "cpu"],
+                    "properties": {
+                      "memory": { "type": "string" },
+                      "cpu": { "type": "string" },
+                      "ephemeral-storage": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "backend": { "$ref": "#/$defs/backendComponent" },
+      "frontend": { "$ref": "#/$defs/frontendComponent" },
+      "apiGateway": { "$ref": "#/$defs/apiGatewayComponent" },
+      "ingress": {
+        "type": "object",
+        "required": ["enabled", "className", "annotations", "hosts"],
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "className": { "type": "string" },
+          "annotations": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          },
+          "hosts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["host", "paths"],
+              "properties": {
+                "host": { "type": "string" },
+                "paths": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["path", "service", "port"],
+                    "properties": {
+                      "path": { "type": "string" },
+                      "service": { "type": "string" },
+                      "port": { "type": "integer" },
+                      "namespace": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "gkeGateway": {
+        "type": "object",
+        "required": ["enabled", "routes"],
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "hosts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["host"],
+              "properties": {
+                "host": { "type": "string" }
+              }
+            }
+          },
+          "routes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["path", "service", "port"],
+              "properties": {
+                "path": { "type": "string" },
+                "service": { "type": "string" },
+                "port": { "type": "integer" },
+                "namespace": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "persistence": {
+        "type": "object",
+        "required": ["fileStorage"],
+        "properties": {
+          "fileStorage": {
+            "type": "object",
+            "required": ["enabled", "size", "storageClass", "accessMode"],
+            "properties": {
+              "enabled": { "type": "boolean" },
+              "size": {
+                "type": "string",
+                "pattern": "^[0-9]+Gi$"
+              },
+              "storageClass": { "type": "string" },
+              "accessMode": { 
+                "type": "string",
+                "enum": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "$defs": {
+      "backendComponent": {
+        "type": "object",
+        "required": ["indexing", "query", "storage", "env", "config"],
+        "properties": {
+          "indexing": { "$ref": "#/$defs/backendService" },
+          "query": { "$ref": "#/$defs/backendService" },
+          "storage": {
+            "type": "object",
+            "required": ["volumeName", "mountPath"],
+            "properties": {
+              "volumeName": { "type": "string" },
+              "mountPath": { "type": "string" }
+            }
+          },
+          "env": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          },
+          "config": {
+            "type": "object",
+            "required": ["llm", "tokenizers", "logging", "indexing"],
+            "properties": {
+              "llm": {
+                "type": "object",
+                "required": ["generator", "useOpenAIEmbedder"],
+                "properties": {
+                  "generator": { "type": "string" },
+                  "useOpenAIEmbedder": { "type": "boolean" }
+                }
+              },
+              "tokenizers": {
+                "type": "object",
+                "required": ["parallelism"],
+                "properties": {
+                  "parallelism": { "type": "boolean" }
+                }
+              },
+              "logging": {
+                "type": "object",
+                "required": ["level", "haystackLevel"],
+                "properties": {
+                  "level": { "type": "string" },
+                  "haystackLevel": { "type": "string" }
+                }
+              },
+              "indexing": {
+                "type": "object",
+                "required": ["onStartup"],
+                "properties": {
+                  "onStartup": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "backendService": {
+        "type": "object",
+        "required": ["enabled", "replicas", "image", "service", "resources"],
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "replicas": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "image": {
+            "type": "object",
+            "required": ["imageName", "tag"],
+            "properties": {
+              "imageName": { "type": "string" },
+              "tag": { "type": "string" }
+            }
+          },
+          "service": {
+            "type": "object",
+            "required": ["ports", "type"],
+            "properties": {
+              "ports": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["port"],
+                  "properties": {
+                    "port": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 65535
+                    },
+                    "targetPort": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 65535
+                    },
+                    "name": { "type": "string" }
+                  }
+                }
+              },
+              "type": {
+                "type": "string",
+                "enum": ["ClusterIP", "NodePort", "LoadBalancer"]
+              },
+              "readinessProbe": {
+                "type": "object",
+                "properties": {
+                  "httpGet": {
+                    "type": "object",
+                    "required": ["path", "port"],
+                    "properties": {
+                      "path": { "type": "string" },
+                      "port": {
+                        "type": ["string", "integer"],
+                        "description": "Can be port number or named port"
+                      }
+                    }
+                  },
+                  "initialDelaySeconds": { "type": "integer" },
+                  "periodSeconds": { "type": "integer" },
+                  "timeoutSeconds": { "type": "integer" },
+                  "failureThreshold": { "type": "integer" }
+                }
+              },
+              "livenessProbe": {
+                "type": "object",
+                "properties": {
+                  "httpGet": {
+                    "type": "object",
+                    "required": ["path", "port"],
+                    "properties": {
+                      "path": { "type": "string" },
+                      "port": { 
+                        "type": ["string", "integer"],
+                        "description": "Can be port number or named port"
+                      }
+                    }
+                  },
+                  "initialDelaySeconds": { "type": "integer" },
+                  "periodSeconds": { "type": "integer" },
+                  "timeoutSeconds": { "type": "integer" },
+                  "failureThreshold": { "type": "integer" }
+                }
+              }
+            }
+          },
+          "resources": {
+            "type": "object",
+            "required": ["requests", "limits"],
+            "properties": {
+              "requests": {
+                "type": "object",
+                "required": ["memory", "cpu"],
+                "properties": {
+                  "memory": { "type": "string" },
+                  "cpu": { "type": "string" },
+                  "ephemeral-storage": { "type": "string" }
+                }
+              },
+              "limits": {
+                "type": "object",
+                "required": ["memory", "cpu"],
+                "properties": {
+                  "memory": { "type": "string" },
+                  "cpu": { "type": "string" },
+                  "ephemeral-storage": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "frontendComponent": {
+        "type": "object",
+        "required": ["enabled", "replicas", "image", "service", "resources"],
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "replicas": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "image": {
+            "type": "object",
+            "required": ["imageName", "tag"],
+            "properties": {
+              "imageName": { "type": "string" },
+              "tag": { "type": "string" },
+              "pullPolicy": {
+                "type": "string",
+                "enum": ["Always", "IfNotPresent", "Never"]
+              }
+            }
+          },
+          "service": {
+            "type": "object",
+            "required": ["ports", "type"],
+            "properties": {
+              "ports": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["port", "targetPort", "name"],
+                  "properties": {
+                    "port": { "type": "integer" },
+                    "targetPort": { "type": "integer" },
+                    "name": { "type": "string" }
+                  }
+                }
+              },
+              "type": {
+                "type": "string",
+                "enum": ["ClusterIP", "NodePort", "LoadBalancer"]
+              },
+              "readinessProbe": {
+                "type": "object",
+                "properties": {
+                  "httpGet": {
+                    "type": "object",
+                    "required": ["path", "port"],
+                    "properties": {
+                      "path": { "type": "string" },
+                      "port": { "type": "string" }
+                    }
+                  }
+                }
+              },
+              "livenessProbe": {
+                "type": "object",
+                "properties": {
+                  "httpGet": {
+                    "type": "object",
+                    "required": ["path", "port"],
+                    "properties": {
+                      "path": { "type": "string" },
+                      "port": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "resources": {
+            "type": "object",
+            "required": ["requests", "limits"],
+            "properties": {
+              "requests": {
+                "type": "object",
+                "required": ["memory", "cpu"],
+                "properties": {
+                  "memory": { "type": "string" },
+                  "cpu": { "type": "string" }
+                }
+              },
+              "limits": {
+                "type": "object",
+                "required": ["memory", "cpu"],
+                "properties": {
+                  "memory": { "type": "string" },
+                  "cpu": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "apiGatewayComponent": {
+        "type": "object",
+        "required": ["enabled", "replicas", "image", "service", "configMap", "resources"],
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "replicas": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "image": {
+            "type": "object",
+            "required": ["registryPath", "imageName", "tag"],
+            "properties": {
+              "registryPath": { "type": "string" },
+              "imageName": { "type": "string" },
+              "tag": { "type": "string" }
+            }
+          },
+          "service": {
+            "type": "object",
+            "required": ["ports", "type"],
+            "properties": {
+              "ports": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["port"],
+                  "properties": {
+                    "port": { "type": "integer" },
+                    "targetPort": { "type": "integer" },
+                    "name": { "type": "string" }
+                  }
+                }
+              },
+              "type": {
+                "type": "string",
+                "enum": ["ClusterIP", "NodePort", "LoadBalancer"]
+              }
+            }
+          },
+          "configMap": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" }
+            }
+          },
+          "resources": {
+            "type": "object",
+            "properties": {
+              "requests": {
+                "type": "object",
+                "properties": {
+                  "memory": { "type": "string" },
+                  "cpu": { "type": "string" }
+                }
+              },
+              "limits": {
+                "type": "object",
+                "properties": {
+                  "memory": { "type": "string" },
+                  "cpu": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+}

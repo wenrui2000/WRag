@@ -1,0 +1,95 @@
+{{- if .Values.search.opensearch.enabled }}
+{{- $serviceValues := dict "name" "opensearch" "group" "search" "root" . "values" .Values.search.opensearch -}}
+{{- include "common.service" $serviceValues }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "app.fullname" . }}-search-opensearch
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: opensearch
+    app.kubernetes.io/group: search
+spec:
+  serviceName: {{ .Values.search.opensearch.service.name | default (include "common.componentName" $serviceValues) }}
+  replicas: {{ .Values.search.opensearch.replicas }}
+  selector:
+    matchLabels:
+      {{- include "app.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: opensearch
+      app.kubernetes.io/group: search
+  template:
+    metadata:
+      labels:
+        {{- include "app.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: opensearch
+        app.kubernetes.io/group: search
+    spec:
+      {{- with .Values.search.opensearch.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: opensearch
+        {{- with .Values.search.opensearch.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        image: "opensearchproject/{{ .Values.search.opensearch.image.imageName }}:{{ .Values.search.opensearch.image.tag }}"
+        imagePullPolicy: {{ .Values.search.opensearch.image.pullPolicy }}
+        env:
+        - name: discovery.type
+          value: single-node
+        - name: bootstrap.memory_lock
+          value: "false"
+        - name: OPENSEARCH_JAVA_OPTS
+          value: {{ .Values.search.opensearch.config.javaOpts | quote }}
+        - name: OPENSEARCH_SECURITY_ENABLED
+          value: "true"
+        - name: OPENSEARCH_INITIAL_ADMIN_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ if .Values.global.secrets.useExternalSecrets }}
+                {{- .Values.global.secrets.name }}
+              {{- else }}
+                {{- include "app.fullname" . }}-secrets
+              {{- end }}
+              key: opensearch-user
+        - name: OPENSEARCH_INITIAL_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ if .Values.global.secrets.useExternalSecrets }}
+                {{- .Values.global.secrets.name }}
+              {{- else }}
+                {{- include "app.fullname" . }}-secrets
+              {{- end }}
+              key: opensearch-password
+        ports:
+        {{- if .Values.search.opensearch.service.ports }}
+        {{- range .Values.search.opensearch.service.ports }}
+        - name: {{ .name }}
+          containerPort: {{ .targetPort }}
+        {{- end }}
+        {{- else }}
+        - name: {{ .Values.search.opensearch.service.name | default "http" }}
+          containerPort: {{ .Values.search.opensearch.service.port }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.search.opensearch.resources | nindent 10 }}
+        volumeMounts:
+        - name: opensearch-data
+          mountPath: /usr/share/opensearch/data
+        readinessProbe:
+          {{- toYaml .Values.search.opensearch.readinessProbe | nindent 10 }}
+        livenessProbe:
+          {{- toYaml .Values.search.opensearch.livenessProbe | nindent 10 }}
+  volumeClaimTemplates:
+  - metadata:
+      name: opensearch-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: {{ .Values.search.opensearch.volumeClaimTemplates.storageClass }}
+      resources:
+        requests:
+          storage: {{ .Values.search.opensearch.volumeClaimTemplates.size }}
+{{- end }}

@@ -1,0 +1,246 @@
+global:
+  environment: development
+  image:
+    registryPath: gcr.io/your-project-id  # Registry, e.g. Docker Hub, GCR, ECR, etc.
+    pullPolicy: Always
+  secrets:
+    useExternalSecrets: true  # Set this to true to use external secrets
+    name: "hra-secrets"  # E.g., from `kubectl create secret generic hra-secrets ..`
+    opensearch:
+      adminUser: "admin"
+      adminPassword: "your-password-here"  # Set it here unless useExternalSecrets is true
+    openai:
+      apiKey: "sk-proj-999"  # Set it here unless useExternalSecrets is true
+
+search:
+  opensearch:
+    enabled: true
+    replicas: 1
+    image:
+      imageName: opensearch
+      tag: "2.18.0"
+      pullPolicy: IfNotPresent
+    securityContext:
+      runAsUser: 1000
+    podSecurityContext:
+      fsGroup: 1000
+    service:
+      ports:
+        - port: 9200
+          targetPort: 9200
+          name: rest-api
+        - port: 9600
+          targetPort: 9600
+          name: performance
+      type: ClusterIP
+      clusterIP: None  # Headless service
+    resources:
+      requests:
+        memory: "2Gi"
+        cpu: "500m"
+        ephemeral-storage: "2Gi"
+      limits:
+        memory: "4Gi"
+        cpu: "1000m"
+        ephemeral-storage: "4Gi"
+    volumeClaimTemplates:
+      size: 30Gi
+      storageClass: standard-rwo-regional  # GKE storage class
+    config:
+      javaOpts: "-Xms512m -Xmx512m"
+    readinessProbe:
+      tcpSocket:
+        port: rest-api
+      initialDelaySeconds: 90
+      periodSeconds: 10
+      timeoutSeconds: 10
+      failureThreshold: 10
+    livenessProbe:
+      tcpSocket:
+        port: rest-api
+      initialDelaySeconds: 180
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 10
+
+backend:
+  indexing:
+    enabled: true
+    replicas: 1
+    image:
+      imageName: hra-indexing
+      tag: latest
+    service:
+      ports:
+        - port: 8001
+          targetPort: 8001
+          name: indexing-api
+      type: ClusterIP
+      readinessProbe:
+        httpGet:
+          path: /health
+          port: indexing-api
+        initialDelaySeconds: 30
+        periodSeconds: 10
+        timeoutSeconds: 5
+        failureThreshold: 18
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: indexing-api
+        initialDelaySeconds: 60
+        periodSeconds: 10
+        timeoutSeconds: 5
+        failureThreshold: 18
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "250m"
+        ephemeral-storage: "10Gi"  # Increase ephemeral storage
+      limits:
+        memory: "2Gi"
+        cpu: "500m"
+        ephemeral-storage: "20Gi"
+  query:
+    enabled: true
+    replicas: 1
+    image:
+      imageName: hra-query
+      tag: latest
+    service:
+      ports:
+        - port: 8002
+          targetPort: 8002
+          name: query-api
+      type: ClusterIP
+      readinessProbe:
+        httpGet:
+          path: /health
+          port: query-api
+        initialDelaySeconds: 30
+        periodSeconds: 10
+        timeoutSeconds: 5
+        failureThreshold: 18
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: query-api
+        initialDelaySeconds: 60
+        periodSeconds: 10
+        timeoutSeconds: 5
+        failureThreshold: 18
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "250m"
+        ephemeral-storage: "10Gi"  # Increase ephemeral storage
+      limits:
+        memory: "2Gi"
+        cpu: "500m"
+        ephemeral-storage: "20Gi"
+  storage:
+    volumeName: file-storage
+    mountPath: /app/files
+  env:
+    PYTHONUNBUFFERED: "1"
+  config:
+    llm:
+      generator: openai
+      useOpenAIEmbedder: false
+    tokenizers:
+      parallelism: false
+    logging:
+      level: INFO
+      haystackLevel: INFO
+    indexing:
+      onStartup: true
+
+frontend:
+  enabled: true
+  replicas: 1
+  image:
+    imageName: hra-frontend
+    tag: latest
+  service:
+    ports:
+      - port: 3000
+        targetPort: 3000
+        name: react-app
+    type: ClusterIP
+    readinessProbe:
+      httpGet:
+        path: /
+        port: react-app
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 5
+    livenessProbe:
+      httpGet:
+        path: /
+        port: react-app
+      initialDelaySeconds: 60
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 5
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "200m"
+
+apiGateway:
+  enabled: true
+  replicas: 1
+  image:
+    registryPath: docker.io/library
+    imageName: nginx
+    tag: alpine
+  service:
+    ports:
+      - port: 8080
+        targetPort: 8080
+    type: ClusterIP
+  configMap:
+    name: api-gateway-config
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "200m"
+      memory: "512Mi"
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/client-max-body-size: "100m"
+    nginx.ingress.kubernetes.io/client-body-timeout: "120s"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "300s"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300s"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "10m"
+  hosts:
+    - host: ""
+      paths:
+        - path: /
+          service: gateway-api-gw
+          namespace: default
+          port: 8080
+
+gkeGateway:
+  enabled: false
+  hosts:
+  routes:
+    - path: /
+      service: gateway-api-gw
+      port: 8080
+
+persistence:
+  fileStorage:
+    enabled: true
+    size: 30Gi
+    storageClass: standard-rwo-regional  # GKE storage class
+    accessMode: ReadWriteOnce # Only indexing pod writes!

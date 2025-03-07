@@ -1,0 +1,86 @@
+{{- if .Values.frontend.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "app.fullname" . }}-frontend-config
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/group: frontend
+data:
+  nginx.conf: |
+    server {
+        listen 3000 default_server;
+        server_name _;
+
+        client_max_body_size 100M;
+
+        location / {
+            root   /usr/share/nginx/html;
+            index  index.html index.htm;
+            try_files $uri $uri/ /index.html;
+        }
+
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   /usr/share/nginx/html;
+        }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "app.fullname" . }}-frontend
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/group: frontend
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      {{- include "app.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: frontend
+      app.kubernetes.io/group: frontend
+  template:
+    metadata:
+      labels:
+        {{- include "app.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: frontend
+        app.kubernetes.io/group: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: "{{ .Values.global.image.registryPath }}/{{ .Values.frontend.image.imageName }}:{{ .Values.frontend.image.tag }}"
+        imagePullPolicy: {{ default .Values.global.image.pullPolicy .Values.frontend.image.pullPolicy }}
+        ports:
+          {{- if .Values.frontend.service.ports }}
+          - name: {{ (index .Values.frontend.service.ports 0).name | default "http" }}
+            containerPort: {{ (index .Values.frontend.service.ports 0).targetPort | default (index .Values.frontend.service.ports 0).port }}
+          {{- else }}
+          - name: http
+            containerPort: {{ .Values.frontend.service.targetPort | default .Values.frontend.service.port }}
+          {{- end }}
+        volumeMounts:
+          - name: config
+            mountPath: /etc/nginx/conf.d/default.conf
+            subPath: nginx.conf
+            readOnly: true
+        {{- with .Values.frontend.service.readinessProbe }}
+        readinessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.frontend.service.livenessProbe }}
+        livenessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.frontend.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "app.fullname" . }}-frontend-config
+{{- end }}

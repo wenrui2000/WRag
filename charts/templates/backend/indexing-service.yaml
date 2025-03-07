@@ -1,0 +1,2 @@
+{{- $values := dict "name" "indexing" "group" "backend" "values" .Values.backend.indexing "root" . -}}
+{{- include "common.service" $values }}

@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "app.fullname" . }}-backend-query
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: query
+    app.kubernetes.io/group: backend
+spec:
+  replicas: {{ .Values.backend.query.replicas }}
+  selector:
+    matchLabels:
+      {{- include "app.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: query
+      app.kubernetes.io/group: backend
+  template:
+    metadata:
+      labels:
+        {{- include "app.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: query
+        app.kubernetes.io/group: backend
+    spec:
+      {{- include "common.opensearch.initContainer" . | nindent 6 }}
+      containers:
+      - name: query
+        image: "{{ .Values.global.image.registryPath }}/{{ .Values.backend.query.image.imageName }}:{{ .Values.backend.query.image.tag }}"
+        imagePullPolicy: {{ default .Values.global.image.pullPolicy .Values.backend.query.image.pullPolicy }}
+        ports:
+          {{- if .Values.backend.query.service.ports }}
+          - name: {{ (index .Values.backend.query.service.ports 0).name | default "http" }}
+            containerPort: {{ (index .Values.backend.query.service.ports 0).targetPort | default (index .Values.backend.query.service.ports 0).port }}
+          {{- else }}
+          - name: http
+            containerPort: {{ .Values.backend.query.service.targetPort | default .Values.backend.query.service.port }}
+          {{- end }}
+        {{- with .Values.backend.query.service.readinessProbe }}
+        readinessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.backend.query.service.livenessProbe }}
+        livenessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.backend.query.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        env:
+          - name: OPENSEARCH_USER
+            valueFrom:
+              secretKeyRef:
+                name: {{ if .Values.global.secrets.useExternalSecrets }}
+                {{- .Values.global.secrets.name }}
+              {{- else }}
+                {{- include "app.fullname" . }}-secrets
+              {{- end }}
+                key: opensearch-user
+          - name: OPENSEARCH_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ if .Values.global.secrets.useExternalSecrets }}
+                {{- .Values.global.secrets.name }}
+              {{- else }}
+                {{- include "app.fullname" . }}-secrets
+              {{- end }}
+                key: opensearch-password
+          - name: OPENAI_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ if .Values.global.secrets.useExternalSecrets }}
+                {{- .Values.global.secrets.name }}
+              {{- else }}
+                {{- include "app.fullname" . }}-secrets
+              {{- end }}
+                key: openai-api-key
+        envFrom:
+          - configMapRef:
+              name: {{ include "app.fullname" . }}-backend-config

@@ -1,0 +1,20 @@
+FROM wrag-app-base:latest
+
+WORKDIR /app
+
+# Copy shared code first
+COPY src/common /app/common
+COPY src/pipelines /app/pipelines
+
+# Copy the query service code
+COPY src/query /app/query
+
+# Create __init__.py files to make directories proper Python packages if they don't exist
+RUN touch /app/__init__.py
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+
+# Command to run the service
+CMD ["uvicorn", "query.main:app", "--host", "0.0.0.0", "--port", "8002"]

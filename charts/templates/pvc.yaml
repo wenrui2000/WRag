@@ -1,0 +1,16 @@
+{{- if and .Values.backend .Values.persistence.fileStorage.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "app.fullname" . }}-{{ .Values.backend.storage.volumeName }}
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+    app.kubernetes.io/group: backend
+spec:
+  accessModes:
+    - {{ .Values.persistence.fileStorage.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.fileStorage.size }}
+  storageClassName: {{ .Values.persistence.fileStorage.storageClass }}
+{{- end }}
