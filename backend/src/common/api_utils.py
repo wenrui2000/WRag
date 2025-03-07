@@ -56,8 +56,20 @@ def create_api(
         Returns:
             dict: A dictionary containing the status of the service.
         """
+        # Generate an explicit trace for testing if tracing is enabled
+        from common.config import settings
+        if settings.tracing_enabled:
+            from opentelemetry import trace
+            service_name = title.replace(" ", "_").lower()
+            tracer = trace.get_tracer(service_name)
+            with tracer.start_as_current_span("health_check") as span:
+                span.set_attribute("service.name", service_name)
+                span.set_attribute("test.attribute", "value")
+                span.add_event("Health check requested")
+        
         return {
-            "status": "ok"
+            "status": "ok",
+            "service": title
         }
 
     return app

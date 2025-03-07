@@ -5,6 +5,7 @@ WORKDIR /app
 # Copy shared code first
 COPY src/common /app/common
 COPY src/pipelines /app/pipelines
+COPY src/utils /app/utils
 
 # Copy the query service code
 COPY src/query /app/query

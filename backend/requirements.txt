@@ -16,3 +16,14 @@ qdrant-client==1.13.2
 ollama-haystack==2.3.0
 nltk>=3.9.1
 mysql-connector-python>=8.0.33
+opentelemetry-api>=1.21.0
+opentelemetry-sdk>=1.21.0
+opentelemetry-exporter-jaeger>=1.21.0
+opentelemetry-exporter-otlp>=1.30.0
+opentelemetry-instrumentation-fastapi>=0.42b0
+opentelemetry-instrumentation-haystack>=0.1.0
+opentelemetry-instrumentation>=0.42b0
+opentelemetry-instrumentation-logging>=0.42b0
+opentelemetry-instrumentation-requests>=0.42b0
+prometheus-client>=0.21.1
+prometheus-fastapi-instrumentator>=6.1.0

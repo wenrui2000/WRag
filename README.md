@@ -62,6 +62,13 @@ query_service-1     | INFO:     127.0.0.1:xxxxx - "GET /health HTTP/1.1" 200 OK
 
 **Note**: This RAG application currently supports PDF, TXT, and Markdown file formats.
 
+### Accessing Prometheus Metrics
+
+Access the Prometheus UI at [http://localhost:9091](http://localhost:9091) to view system metrics, including:
+- HTTP request counts and latencies
+- File upload and indexing operations
+- Search performance metrics
+
 ## How the Application Works with Docker
 
 When all containers are running, the application architecture works as follows:
@@ -83,6 +90,8 @@ When all containers are running, the application architecture works as follows:
    - **kibana**: Web UI for Elasticsearch (optional, for debugging).
 
 5. **ollama**: Container for running local LLMs.
+
+6. **prometheus**: Metrics collection and monitoring system. Access the Prometheus UI at http://localhost:9091.
 
 This setup allows for a clean separation of concerns and scalability.
 
@@ -166,6 +175,12 @@ curl -X GET http://localhost:6333/collections
 
 ```
 curl -X GET http://localhost:11434/api/tags
+```
+
+### Checking if Prometheus is running:
+
+```
+curl -X GET http://localhost:9091/api/v1/status/config
 ```
 
 ### Docker Logs:

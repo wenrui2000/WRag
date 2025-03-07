@@ -66,6 +66,17 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", description="Logging level")
     haystack_log_level: str = Field(default="INFO", description="Wrag logging level")
     
+    # Metrics settings
+    metrics_enabled: bool = Field(default=True, description="Enable Prometheus metrics")
+    prometheus_exporter: bool = Field(default=True, description="Enable Prometheus exporter for FastAPI")
+    metrics_service_name: str = Field(default="wrag-app", description="Service name for metrics")
+    
+    # Tracing settings
+    tracing_enabled: bool = Field(default=False, description="Enable OpenTelemetry tracing")
+    jaeger_host: str = Field(default="jaeger", description="Jaeger host")
+    jaeger_port: int = Field(default=6831, description="Jaeger port")
+    tracing_content_enabled: bool = Field(default=True, description="Enable content tracing for Haystack")
+    
     # Path settings
     pipelines_dir: Path = Field(
         default=Path(__file__).resolve().parent.parent / "pipelines",
@@ -180,6 +191,13 @@ def yaml_to_env_vars(yaml_config: Dict[str, Any]) -> None:
         "logging.level": "LOG_LEVEL",
         "logging.wrag_level": "WRAG_LOG_LEVEL",
         "logging.tokenizers_parallelism": "TOKENIZERS_PARALLELISM",
+        "metrics.enabled": "METRICS_ENABLED",
+        "metrics.prometheus_exporter": "PROMETHEUS_EXPORTER",
+        "metrics.service_name": "METRICS_SERVICE_NAME",
+        "tracing.enabled": "TRACING_ENABLED",
+        "tracing.jaeger_host": "JAEGER_HOST",
+        "tracing.jaeger_port": "JAEGER_PORT",
+        "tracing.content_enabled": "TRACING_CONTENT_ENABLED",
     }
     
     # Set environment variables from nested YAML config

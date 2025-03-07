@@ -24,9 +24,12 @@ from haystack_integrations.document_stores.qdrant import QdrantDocumentStore
 from common.config import settings
 from common.document_store import get_qdrant_store
 from indexing.mysql_document_writer import MySQLDocumentWriter, MySQLSourceDocumentWriter
+from utils.tracing import trace_pipeline_creation
+from utils.metrics import patch_pipeline_components
 
 logger = logging.getLogger(__name__)
 
+@trace_pipeline_creation(service_name="indexing_service")
 def create_index_pipeline(
     document_store: ElasticsearchDocumentStore,
     qdrant_store: Optional[QdrantDocumentStore] = None,
@@ -204,5 +207,8 @@ def create_index_pipeline(
         logger.info("Connected document_embedder to mysql_document_writer")
     
     logger.info("Pipeline connections established.")
+    
+    # Instrument all pipeline components for metrics collection
+    pipeline = patch_pipeline_components(pipeline, service_name="indexing_service")
     
     return pipeline 

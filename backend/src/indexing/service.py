@@ -174,6 +174,18 @@ class IndexingService:
                 "success": False
             }
     
+    async def process_and_index_file(self, file: UploadFile) -> Dict:
+        """
+        Alias for index_file method for backward compatibility.
+        
+        Args:
+            file: The uploaded file to index
+            
+        Returns:
+            Dict containing information about the indexing process
+        """
+        return await self.index_file(file)
+    
     def _get_qdrant_document_count(self) -> int:
         """
         Get the total number of documents in the Qdrant document store

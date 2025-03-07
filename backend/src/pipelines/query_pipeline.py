@@ -19,7 +19,10 @@ from haystack_integrations.components.generators.ollama import OllamaGenerator
 
 from common.config import settings
 from common.document_store import initialize_document_store, get_qdrant_store
+from utils.tracing import trace_pipeline_creation
+from utils.metrics import patch_pipeline_components
 
+@trace_pipeline_creation(service_name="query_service")
 def create_query_pipeline(model: str = None):
     """
     Create and configure the query pipeline programmatically.
@@ -133,5 +136,8 @@ def create_query_pipeline(model: str = None):
     
     # Debug: Print all connections
     logger.info("Pipeline connections established.")
+    
+    # Instrument all pipeline components for metrics collection
+    pipeline = patch_pipeline_components(pipeline, service_name="query_service")
     
     return pipeline 

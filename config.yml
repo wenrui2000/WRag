@@ -42,7 +42,7 @@ document:
 
 # Application settings
 app:
-  index_on_startup: true
+  index_on_startup: false
   pipelines_from_yaml: false
 
 # Logging settings
@@ -50,6 +50,19 @@ logging:
   level: "INFO"
   haystack_level: "INFO"
   tokenizers_parallelism: false
+
+# Tracing settings
+tracing:
+  enabled: true
+  jaeger_host: "jaeger"
+  jaeger_port: 6831
+  content_enabled: false
+
+# Metrics settings
+metrics:
+  enabled: true
+  prometheus_exporter: true
+  service_name: "wrag-app"
 
 # Docker and build settings
 docker:

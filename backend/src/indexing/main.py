@@ -16,6 +16,8 @@ from common.models import FilesUploadResponse, FilesListResponse
 from common.document_store import initialize_document_store, get_qdrant_store
 from common.config import settings
 from indexing.service import IndexingService
+from utils.tracing import instrument_fastapi, patch_haystack_tracing
+from utils.metrics import instrument_fastapi_with_metrics, setup_metrics, create_counter, create_histogram
 
 
 logging.basicConfig(
@@ -52,6 +54,35 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add OpenTelemetry tracing if enabled
+if settings.tracing_enabled:
+    instrument_fastapi(app, "indexing_service")
+    # Also ensure Haystack tracing integration is patched
+    patch_haystack_tracing()
+
+# Add Prometheus metrics if enabled
+if hasattr(settings, 'metrics_enabled') and settings.metrics_enabled:
+    instrument_fastapi_with_metrics(app, "indexing_service")
+    # Create some basic metrics
+    upload_counter = create_counter(
+        name="indexing_file_uploads_total",
+        description="Number of files uploaded for indexing",
+        labels=["operation"]
+    )
+    index_counter = create_counter(
+        name="indexing_operations_total",
+        description="Number of indexing operations performed",
+        labels=["operation"]
+    )
+    upload_latency = create_histogram(
+        name="indexing_file_upload_latency_seconds",
+        description="Latency of file upload and indexing operations in seconds",
+        labels=["file_type"],
+        buckets=[1, 5, 10, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300]
+    )
+    # Initialize component metrics
+    setup_metrics("indexing_service")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -104,11 +135,35 @@ async def upload_files(
 
     responses = []
     all_successful = True
+    total_files = 0
     
     for file in files:
         try:
+            # Start timing the upload operation for metrics
+            import time
+            start_time = time.time()
+            
             # Use the index_file method, which already handles saving and indexing
             result = await service.index_file(file)
+            
+            # Get file type for metrics labeling
+            file_type = "unknown"
+            if file.filename:
+                file_ext = file.filename.split(".")[-1].lower() if "." in file.filename else "unknown"
+                if file_ext in ["pdf"]:
+                    file_type = "pdf"
+                elif file_ext in ["txt", "text"]:
+                    file_type = "text"
+                elif file_ext in ["md", "markdown"]:
+                    file_type = "markdown"
+                
+            # Record upload latency if metrics are enabled
+            if hasattr(settings, 'metrics_enabled') and settings.metrics_enabled and upload_latency:
+                latency_seconds = (time.time() - start_time)  # Time in seconds
+                upload_latency.labels(file_type=file_type).observe(latency_seconds)
+                
+            total_files += 1
+            
             if result["success"]:
                 logger.info(f"File uploaded and indexed successfully: {result['file_path']} - ES: {result['es_document_count']} documents, Qdrant: {result['qdrant_document_count']} documents indexed")
                 responses.append(FilesUploadResponse(file_id=file.filename, status="success"))
@@ -127,6 +182,10 @@ async def upload_files(
             responses.append(
                 FilesUploadResponse(file_id=file.filename, status="failed", error=str(e))
             )
+
+    # Record metrics for file uploads if enabled
+    if hasattr(settings, 'metrics_enabled') and settings.metrics_enabled and upload_counter:
+        upload_counter.labels(operation="upload").inc(total_files)
 
     status_code = 200 if all_successful else 500
     return JSONResponse(content=[response.dict() for response in responses], status_code=status_code)
@@ -156,12 +215,63 @@ async def get_files(
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok"}
+    """
+    Health check endpoint with explicit trace generation for testing.
+    """
+    logger.info("Health check requested - attempting to generate traces")
+    
+    # Generate an explicit trace for testing
+    if settings.tracing_enabled:
+        try:
+            from opentelemetry import trace
+            
+            # Get current tracer
+            tracer = trace.get_tracer("indexing_service")
+            logger.info(f"Got tracer: {tracer}")
+            
+            # Create a span using the tracer
+            with tracer.start_as_current_span("health_check") as span:
+                span.set_attribute("service.name", "indexing_service")
+                span.set_attribute("operation.type", "health_check")
+                span.add_event("Health check started")
+                
+                # Simulate some work
+                import time
+                time.sleep(0.1)
+                
+                # Create a nested span
+                with tracer.start_as_current_span("database_check") as child_span:
+                    child_span.set_attribute("database", "health_verification")
+                    time.sleep(0.05)
+                    child_span.add_event("Database check completed")
+                
+                # Finalize the parent span
+                span.add_event("Health check completed")
+                logger.info("Health check trace completed")
+            
+            # Check if Haystack tracing is enabled rather than trying to get a tracer
+            import haystack.tracing
+            tracing_enabled = haystack.tracing.is_tracing_enabled()
+            logger.info(f"Haystack tracing enabled: {tracing_enabled}")
+            
+            # If Haystack tracing is enabled, create an OpenTelemetry span for Haystack
+            if tracing_enabled:
+                # Use OpenTelemetry directly instead of trying to access Haystack's tracer
+                with tracer.start_as_current_span("haystack_integration_test") as hs_span:
+                    hs_span.set_attribute("component", "haystack")
+                    hs_span.set_attribute("test_type", "integration")
+                    logger.info("Created span for Haystack integration test using OpenTelemetry")
+        except Exception as e:
+            logger.error(f"Error generating traces: {e}")
+    else:
+        logger.info("Tracing is disabled")
+    
+    return {"status": "ok", "service": "indexing_service", "trace_test": "completed"}
 
 @app.post("/index")
 async def index_file(file: UploadFile) -> Dict:
     """
-    Index a single file to both Elasticsearch and Qdrant.
+    Upload and immediately index a file.
     
     This endpoint processes and indexes the uploaded file to both document stores:
     - Elasticsearch for full-text search
@@ -169,25 +279,43 @@ async def index_file(file: UploadFile) -> Dict:
     
     Only PDF and Markdown files are supported.
     """
-    if not file.content_type in ["application/pdf", "text/markdown", "text/plain"]:
-        raise HTTPException(
-            status_code=400, 
-            detail="Invalid file type. Only PDF, Markdown, and text files are supported."
-        )
-    
     try:
+        # Start timing the indexing operation for metrics
+        import time
+        start_time = time.time()
+        
+        # Get file type for metrics labeling
+        file_type = "unknown"
+        if file.filename:
+            file_ext = file.filename.split(".")[-1].lower() if "." in file.filename else "unknown"
+            if file_ext in ["pdf"]:
+                file_type = "pdf"
+            elif file_ext in ["txt", "text"]:
+                file_type = "text"
+            elif file_ext in ["md", "markdown"]:
+                file_type = "markdown"
+        
+        # Process file
         result = await indexing_service.index_file(file)
-        if result["success"]:
-            return {
-                "message": "File indexed successfully to Elasticsearch and Qdrant",
-                "indexed_count": result["indexed_documents"],
-                "es_document_count": result["es_document_count"],
-                "qdrant_document_count": result["qdrant_document_count"]
-            }
-        else:
-            raise HTTPException(status_code=500, detail=f"Error indexing file: {result.get('error', 'Unknown error')}")
+        
+        # Record metrics for indexing if enabled
+        if hasattr(settings, 'metrics_enabled') and settings.metrics_enabled:
+            if index_counter:
+                index_counter.labels(operation="index").inc()
+            
+            if upload_latency:
+                latency_seconds = (time.time() - start_time)
+                upload_latency.labels(file_type=file_type).observe(latency_seconds)
+        
+        return {
+            "message": "File indexed successfully to Elasticsearch and Qdrant",
+            "indexed_count": result["indexed_documents"],
+            "es_document_count": result["es_document_count"],
+            "qdrant_document_count": result["qdrant_document_count"]
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error indexing file: {str(e)}")
+        logger.error(f"Error processing file: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process file: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

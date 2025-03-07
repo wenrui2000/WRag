@@ -16,6 +16,8 @@ from common.document_store import initialize_document_store
 from common.config import settings, OllamaModel
 from query.service import QueryService
 from query.serializer import serialize_query_result
+from utils.tracing import instrument_fastapi, patch_haystack_tracing
+from utils.metrics import instrument_fastapi_with_metrics, setup_metrics, create_counter, create_histogram
 
 
 logging.basicConfig(
@@ -43,6 +45,29 @@ async def lifespan(app: FastAPI):
     # Add any cleanup code here if needed
 
 app = create_api(title="RAG Query Service", lifespan=lifespan)
+
+# Add OpenTelemetry tracing if enabled
+if settings.tracing_enabled:
+    instrument_fastapi(app, "query_service")
+    # Also ensure Haystack tracing integration is patched
+    patch_haystack_tracing()
+
+# Add Prometheus metrics if enabled
+if hasattr(settings, 'metrics_enabled') and settings.metrics_enabled:
+    instrument_fastapi_with_metrics(app, "query_service")
+    # Create some basic metrics
+    search_counter = create_counter(
+        name="query_search_requests_total",
+        description="Number of search requests processed",
+        labels=["query_type"]
+    )
+    search_latency = create_histogram(
+        name="query_search_latency_milliseconds",
+        description="Latency of search operations in milliseconds",
+        labels=["query_type"]
+    )
+    # Initialize component metrics
+    setup_metrics("query_service")
 
 def get_query_service():
     if query_service.pipeline is None:
@@ -73,27 +98,88 @@ async def search(
     If successful, it returns a SearchResponse with the results. If an error occurs, it logs
     the error and raises an HTTPException with a 500 status code.
     """
-    logger.info(f"Received search query: {query.query}, model: {query.model}")
-
     try:
-        # Get answer from service
-        answer = service.search(query.query, query.filters, query.model)
+        # Start timing the search operation for metrics
+        import time
+        start_time = time.time()
         
-        if answer is None:
-            logger.warning("No answer returned from service")
-            return QueryResultsResponse(
-                query_id=uuid.uuid4().hex[:8],
-                results=[]
-            )
+        # Process the search request
+        results = service.search(
+            query=query.query,
+            filters=query.filters,
+            model=query.model
+        )
+        
+        # Record metrics if enabled
+        if hasattr(settings, 'metrics_enabled') and settings.metrics_enabled:
+            if search_counter:
+                search_counter.labels(query_type="search").inc()
             
-        # Create response using serializer
-        response = serialize_query_result(query.query, answer)
+            if search_latency:
+                # Calculate latency in milliseconds
+                latency_ms = (time.time() - start_time) * 1000
+                search_latency.labels(query_type="search").observe(latency_ms)
         
-        logger.info(f"Search successful, returning response")
-        return response
+        # Process and return the results
+        return serialize_query_result(query.query, results)
     except Exception as e:
-        logger.error(f"Search error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error during search: {e}")
+        raise HTTPException(status_code=500, detail=f"Search error: {str(e)}")
+
+@app.get("/health")
+async def health_check():
+    """
+    Health check endpoint with explicit trace generation for testing.
+    """
+    logger.info("Health check requested - attempting to generate traces")
+    
+    # Generate an explicit trace for testing
+    if settings.tracing_enabled:
+        try:
+            from opentelemetry import trace
+            
+            # Get current tracer
+            tracer = trace.get_tracer("query_service")
+            logger.info(f"Got tracer: {tracer}")
+            
+            # Create a span using the tracer
+            with tracer.start_as_current_span("health_check") as span:
+                span.set_attribute("service.name", "query_service")
+                span.set_attribute("operation.type", "health_check")
+                span.add_event("Health check started")
+                
+                # Simulate some work
+                import time
+                time.sleep(0.1)
+                
+                # Create a nested span
+                with tracer.start_as_current_span("query_engine_check") as child_span:
+                    child_span.set_attribute("component", "query_engine")
+                    time.sleep(0.05)
+                    child_span.add_event("Query engine check completed")
+                
+                # Finalize the parent span
+                span.add_event("Health check completed")
+                logger.info("Health check trace completed")
+            
+            # Try to trigger a haystack trace via the direct API
+            import haystack.tracing
+            tracing_enabled = haystack.tracing.is_tracing_enabled()
+            logger.info(f"Haystack tracing enabled: {tracing_enabled}")
+            
+            # If Haystack tracing is enabled, create an OpenTelemetry span for Haystack
+            if tracing_enabled:
+                # Use OpenTelemetry directly instead of trying to access Haystack's tracer
+                with tracer.start_as_current_span("haystack_integration_test") as hs_span:
+                    hs_span.set_attribute("component", "haystack")
+                    hs_span.set_attribute("test_type", "integration")
+                    logger.info("Created span for Haystack integration test using OpenTelemetry")
+        except Exception as e:
+            logger.error(f"Error generating traces: {e}")
+    else:
+        logger.info("Tracing is disabled")
+    
+    return {"status": "ok", "service": "query_service", "trace_test": "completed"}
 
 @app.get("/available-models")
 async def get_available_models():

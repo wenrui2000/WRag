@@ -1,0 +1,18 @@
+{
+    "default_strategy": {
+        "type": "const",
+        "param": 1
+    },
+    "service_strategies": [
+        {
+            "service": "indexing_service",
+            "type": "const",
+            "param": 1
+        },
+        {
+            "service": "query_service",
+            "type": "const",
+            "param": 1
+        }
+    ]
+}
