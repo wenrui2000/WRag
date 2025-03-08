@@ -6,6 +6,20 @@ echo "Starting Ollama setup..."
 # Set environment variables to fix model path issues
 export OLLAMA_MODELS="/root/.ollama/models"
 export OLLAMA_ORIGINS="*"
+export OLLAMA_HOST=${OLLAMA_HOST:-"0.0.0.0:11434"}
+
+# Display environment variables for debugging
+echo "Environment variables:"
+echo "OLLAMA_MODELS=$OLLAMA_MODELS"
+echo "OLLAMA_ORIGINS=$OLLAMA_ORIGINS"
+echo "OLLAMA_HOST=$OLLAMA_HOST"
+
+# Basic network troubleshooting
+echo "Network configuration:"
+ip addr show || echo "ip command not available"
+hostname -I || echo "hostname command not available"
+echo "DNS resolution:"
+cat /etc/resolv.conf || echo "resolv.conf not available"
 
 # Read model configuration from config.yml
 if [ -f /config.yml ]; then

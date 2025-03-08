@@ -22,76 +22,10 @@ RUN ollama serve & \
     pkill ollama
 
 # Set the entrypoint to a script that starts Ollama
-RUN echo '#!/bin/bash\n\
-    echo "Starting Ollama setup..."\n\
-    \n\
-    # Set environment variables to fix model path issues\n\
-    export OLLAMA_MODELS="/root/.ollama/models"\n\
-    export OLLAMA_ORIGINS="*"\n\
-    \n\
-    # Read model configuration from config.yml\n\
-    if [ -f /config.yml ]; then\n\
-    echo "Reading model configuration from config.yml..."\n\
-    CONFIGURED_MODELS=$(python3 -c '"'"'\n\
-    import yaml\n\
-    import sys\n\
-    try:\n\
-    with open("/config.yml", "r") as f:\n\
-    config = yaml.safe_load(f)\n\
-    if config and "llm" in config and "ollama_models" in config["llm"]:\n\
-    if isinstance(config["llm"]["ollama_models"], list):\n\
-    for model in config["llm"]["ollama_models"]:\n\
-    print(model)\n\
-    elif isinstance(config["llm"]["ollama_models"], str):\n\
-    print(config["llm"]["ollama_models"])\n\
-    except Exception as e:\n\
-    print(f"Error: {e}", file=sys.stderr)\n\
-    sys.exit(1)\n\
-    '"'"')\n\
-    echo "The following models should be available from the build process:"\n\
-    echo "$CONFIGURED_MODELS" | while read -r model; do\n\
-    echo "- $model"\n\
-    done\n\
-    else\n\
-    echo "No config.yml found. Using default models."\n\
-    CONFIGURED_MODELS="deepseek-r1:1.5b\n\
-    deepseek-r1:7b"\n\
-    echo "- deepseek-r1:1.5b"\n\
-    echo "- deepseek-r1:7b"\n\
-    fi\n\
-    \n\
-    # Start Ollama in the background to pull models\n\
-    echo "Starting Ollama server in the background..."\n\
-    ollama serve > /dev/null 2>&1 &\n\
-    SERVER_PID=$!\n\
-    \n\
-    # Wait for Ollama to start\n\
-    echo "Waiting for Ollama server to start..."\n\
-    sleep 5\n\
-    \n\
-    # Check if models exist and pull them if they don'"'"'t\n\
-    echo "Checking for missing models and pulling them if necessary..."\n\
-    echo "$CONFIGURED_MODELS" | while read -r model; do\n\
-    if ollama list | grep -q "$model"; then\n\
-    echo "Model $model is already available."\n\
-    else\n\
-    echo "Model $model is missing. Pulling now..."\n\
-    ollama pull "$model"\n\
-    echo "Finished pulling $model."\n\
-    fi\n\
-    done\n\
-    \n\
-    # Kill background Ollama server\n\
-    kill $SERVER_PID\n\
-    sleep 2\n\
-    \n\
-    echo "Actual available models:"\n\
-    ollama list\n\
-    \n\
-    # Start Ollama service\n\
-    echo "Starting Ollama server..."\n\
-    exec ollama serve\n' > /start-ollama.sh
-
+COPY scripts/start-ollama.sh /start-ollama.sh
 RUN chmod +x /start-ollama.sh
+
+# Ensure script has Unix line endings
+RUN sed -i 's/\r$//' /start-ollama.sh
 
 ENTRYPOINT ["/start-ollama.sh"] 
