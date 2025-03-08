@@ -25,4 +25,7 @@ RUN ollama serve & \
 COPY scripts/start-ollama.sh /start-ollama.sh
 RUN chmod +x /start-ollama.sh
 
+# Ensure script has Unix line endings
+RUN sed -i 's/\r$//' /start-ollama.sh
+
 ENTRYPOINT ["/start-ollama.sh"] 

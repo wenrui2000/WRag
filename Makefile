@@ -1,47 +1,57 @@
-# Makefile for Haystack RAG App
+# Makefile for WRAG Application
 
-.PHONY: test test-unit build build-base build-services start stop restart clean rebuild-service rebuild-after-fix
+.PHONY: all test build start stop restart clean setup rebuild logs
+
+# Default target
+all: build start
 
 # Run all tests
 test:
-	@scripts/run_tests.bat
+	@echo "Running all tests..."
+	@cd backend && python -m pytest
 
-# Run unit tests only
-test-unit:
-	@scripts/run_tests.bat
-
-# Build all images
-build: test-unit build-base build-services
-
-# Build base image
-build-base:
-	@scripts/build_base.bat
-
-# Build service images
-build-services:
-	@scripts/build_services.bat
+# Build all services
+build:
+	@echo "Building Docker images..."
+	@docker-compose build
 
 # Start all services
 start:
-	@scripts/start_services.bat
+	@echo "Starting all services..."
+	@docker-compose up -d
 
 # Stop all services
 stop:
-	@scripts/stop_services.bat
+	@echo "Stopping all services..."
+	@docker-compose down
 
 # Restart all services
-restart: stop clean build start
+restart:
+	@echo "Restarting all services..."
+	@docker-compose restart
 
 # Clean Docker resources
 clean:
-	@scripts/clean.bat
+	@echo "Cleaning Docker resources..."
+	@docker-compose down -v
+	@docker system prune -f
+
+# Set up development environment
+setup:
+	@echo "Setting up development environment..."
+	@python -m venv venv
+	@echo "Run 'venv\\Scripts\\activate' to activate the virtual environment (Windows)"
+	@echo "Run 'source venv/bin/activate' to activate the virtual environment (Linux/Mac)"
 
 # Rebuild a specific service
-# Usage: make rebuild-service SERVICE=indexing_service
-rebuild-service:
-	@if not defined SERVICE (echo SERVICE is not defined. Usage: make rebuild-service SERVICE=indexing_service & exit /b 1)
-	@scripts/rebuild_service.bat $(SERVICE)
+# Usage: make rebuild SERVICE=indexing_service
+rebuild:
+	@if not defined SERVICE (echo "SERVICE is not defined. Usage: make rebuild SERVICE=indexing_service" & exit /b 1)
+	@echo "Rebuilding service: $(SERVICE)..."
+	@docker-compose build $(SERVICE)
+	@docker-compose up -d --no-deps $(SERVICE)
 
-# Rebuild services after pipeline loader fix
-rebuild-after-fix:
-	@scripts/rebuild_after_fix.bat 
+# View logs for all or a specific service
+# Usage: make logs [SERVICE=service_name]
+logs:
+	@if defined SERVICE (docker-compose logs -f $(SERVICE)) else (docker-compose logs -f) 

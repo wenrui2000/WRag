@@ -1,4 +1,5 @@
 #!/bin/bash
+# Start Ollama server script for Docker container
 
 echo "Starting Ollama setup..."
 
