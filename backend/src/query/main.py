@@ -189,7 +189,7 @@ async def get_available_models():
     Returns:
         List[dict]: A list of model dictionaries with id and name keys
     """
-    models = [{"id": model.value} 
+    models = [{"id": model.value, "name": model.value} 
               for model in OllamaModel]
     
     return {"models": models}

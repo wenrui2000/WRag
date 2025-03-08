@@ -93,10 +93,10 @@ function App() {
               <img
                 src="/haystack-signet-colored-on-dark.png"
                 alt="Haystack Logo"
-                style={{ height: '100px', marginRight: '1px' }}
+                style={{ height: '60px', marginRight: '1px' }}
               />
             </a>
-            <h1 className="h3 mb-0">Example RAG UI</h1>
+            <h1 className="h4 mb-0">WRAG</h1>
           </Col>
         </Row>
       </Container>

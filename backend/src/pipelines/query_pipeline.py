@@ -87,7 +87,7 @@ def create_query_pipeline(model: str = None):
     
     # 7. Create LLM generator
     # Use the provided model if specified, otherwise use the default from settings
-    llm_model = model if model else settings.ollama_model
+    llm_model = model if model else settings.default_model
     logger.info(f"Using LLM model: {llm_model}")
     
     llm = OllamaGenerator(

@@ -116,7 +116,13 @@ llm:
   generator: "ollama"
   use_ollama: true
   ollama_api_url: "http://ollama:11434"
-  ollama_model: "deepseek-r1:7b"  # Options: "deepseek-r1:1.5b" or "deepseek-r1:7b"
+  default_model: "deepseek-r1:7b"  # Options: "deepseek-r1:1.5b" or "deepseek-r1:7b"
+  ollama_models:
+    - "deepseek-r1:1.5b"
+    - "deepseek-r1:7b"
+    - "llama3:8b"  # Add your preferred models here
+    - "mistral:7b"
+    - "gemma:7b"
 
 # Embedding settings
 embedding:
@@ -128,6 +134,73 @@ document:
   split_by: "word"
   split_length: 250
   split_overlap: 30
+```
+
+### Configuring Ollama Models
+
+The application allows you to use your preferred Ollama models by configuring them in the `config.yml` file:
+
+1. **Add models to be pulled during startup:**
+   ```yaml
+   # LLM settings
+   llm:
+     generator: "ollama"
+     use_ollama: true
+     ollama_api_url: "http://ollama:11434"
+     default_model: "llama3:8b"  # Choose any model from the list below
+     ollama_models:
+       - "deepseek-r1:1.5b"
+       - "deepseek-r1:7b"
+       - "llama3:8b"  # Add your preferred models here
+       - "mistral:7b"
+       - "gemma:7b"
+   ```
+
+#### Understanding Model Configuration
+
+The LLM settings contain two important model-related configurations:
+
+- **default_model**: Specifies which model will be used for inference by default. This is the model that the RAG pipeline will use to generate responses when querying the system.
+- **ollama_models**: A list of all models that should be pulled/downloaded when the application starts. All models in this list will be available for use.
+
+When you start the application, it will automatically pull all the models listed in `ollama_models` if they're not already present on your system. The model specified in `default_model` will be the one used for generating responses.
+
+#### Changing the Default Model
+
+To change which model is used for inference:
+
+1. Make sure the model is listed in the `ollama_models` array (so it will be downloaded)
+2. Set the `default_model` to the name of your preferred model
+3. Restart the application
+
+For example, to use Mistral instead of Llama:
+
+```yaml
+llm:
+  default_model: "mistral:7b"  # This will be used for inference
+  ollama_models:
+    - "deepseek-r1:7b"
+    - "mistral:7b"
+    - "llama3:8b"
+```
+
+When you start the application using Docker Compose, the specified models will be automatically downloaded (if not already present) and the selected model will be used for inference.
+
+#### Using Custom Ollama Models
+
+You can also use custom models with Ollama:
+
+1. Add your custom model to the `llm.ollama_models` list in `config.yml`
+2. Ensure your custom model is available in the Ollama registry or has a valid Modelfile
+3. Set `llm.default_model` to your custom model name
+4. Restart the application with `docker-compose restart`
+
+#### Checking Available Models
+
+To check which models are currently available in your Ollama instance:
+
+```bash
+curl -X GET http://localhost:11434/api/tags
 ```
 
 ## Building and Running Locally
@@ -201,6 +274,121 @@ If you need to completely reset your Docker environment:
 docker-compose down -v
 docker system prune -a --volumes
 ```
+
+## Tracing and Monitoring
+
+This application includes comprehensive tracing and monitoring capabilities to help you understand performance, diagnose issues, and observe system behavior.
+
+### Tracing with OpenTelemetry and Jaeger
+
+The application leverages OpenTelemetry for distributed tracing, with Jaeger as the backend storage and visualization tool. This provides end-to-end visibility into request processing across services.
+
+#### Enabling Tracing
+
+Tracing is configured in the `config.yml` file:
+
+```yaml
+# Tracing settings
+tracing:
+  enabled: true
+  jaeger_host: "jaeger"
+  jaeger_port: 6831
+  content_enabled: false
+```
+
+- `enabled`: Set to `true` to enable distributed tracing
+- `jaeger_host`: The hostname of the Jaeger service
+- `jaeger_port`: The port for the Jaeger collector
+- `content_enabled`: When set to `true`, will include document content in traces (may impact trace size and performance)
+
+#### Accessing the Jaeger UI
+
+Once the application is running, you can access the Jaeger UI at [http://localhost:16686](http://localhost:16686) to view traces.
+
+The Jaeger UI provides:
+- Search functionality to find traces by service, operation, tags, and duration
+- Detailed flamegraphs showing the relationships between spans
+- Timing information for each operation
+- Tag information including error details for failed operations
+
+#### Key Traces Available
+
+The application traces the following operations:
+- HTTP requests to the API endpoints
+- Document indexing operations
+- Query processing through the RAG pipeline
+- Pipeline creation and component initialization
+- Haystack operations (document splitting, embedding, retrieval, generation)
+
+#### Content Tracing
+
+For debugging purposes, you can enable content tracing by setting `content_enabled: true` in the configuration. This will include document content and query/response data in traces, which can be useful for debugging but may significantly increase trace size.
+
+### Monitoring with Prometheus
+
+The application uses Prometheus for metrics collection and monitoring. This provides insights into system performance, resource usage, and application-specific metrics.
+
+#### Enabling Prometheus Metrics
+
+Metrics collection is configured in the `config.yml` file:
+
+```yaml
+# Metrics settings
+metrics:
+  enabled: true
+  prometheus_exporter: true
+  service_name: "wrag-app"
+```
+
+#### Accessing Prometheus UI
+
+The Prometheus UI is available at [http://localhost:9091](http://localhost:9091), allowing you to:
+- Query metrics using PromQL
+- Create graphs and visualizations
+- Set up alerts (when configured)
+- View target health status
+
+#### Available Metrics
+
+The application exposes the following metrics:
+- HTTP request counts, latencies, and status codes
+- Document processing metrics (processing time, document count)
+- RAG pipeline performance metrics (retrieval time, generation time)
+- Haystack component metrics (embedder throughput, retriever performance)
+- System resource usage (when configured)
+
+#### Example Prometheus Queries
+
+Here are some useful Prometheus queries:
+
+1. Total number of API requests:
+   ```
+   sum(http_requests_total)
+   ```
+
+2. 95th percentile request duration:
+   ```
+   histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, handler))
+   ```
+
+3. Document processing latency:
+   ```
+   rate(haystack_component_processing_time_seconds_sum{component="DocumentSplitter"}[5m]) / rate(haystack_component_processing_time_seconds_count{component="DocumentSplitter"}[5m])
+   ```
+
+### Combined Observability
+
+The combination of distributed tracing and metrics provides comprehensive observability for the RAG application:
+- Tracing shows the path of individual requests through the system
+- Metrics provide aggregated views of system performance and health
+- Together, they enable effective debugging, performance optimization, and system monitoring
+
+### Best Practices
+
+1. **Correlation**: When debugging an issue, use trace IDs from logs to find the corresponding trace in Jaeger.
+2. **Selective Tracing**: For production, consider sampling traces instead of tracing every request.
+3. **Dashboard Creation**: Create custom Prometheus dashboards for your specific monitoring needs.
+4. **Alert Configuration**: Set up alerts based on key metrics to be notified of potential issues.
 
 ## Project Structure
 

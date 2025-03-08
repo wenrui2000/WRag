@@ -15,12 +15,12 @@ import sys
 try:
     with open("/config.yml", "r") as f:
         config = yaml.safe_load(f)
-    if config and "docker" in config and "ollama_models" in config["docker"]:
-        if isinstance(config["docker"]["ollama_models"], list):
-            for model in config["docker"]["ollama_models"]:
+    if config and "llm" in config and "ollama_models" in config["llm"]:
+        if isinstance(config["llm"]["ollama_models"], list):
+            for model in config["llm"]["ollama_models"]:
                 print(model)
-        elif isinstance(config["docker"]["ollama_models"], str):
-            print(config["docker"]["ollama_models"])
+        elif isinstance(config["llm"]["ollama_models"], str):
+            print(config["llm"]["ollama_models"])
 except Exception as e:
     print(f"Error: {e}", file=sys.stderr)
     sys.exit(1)

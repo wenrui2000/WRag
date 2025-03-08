@@ -25,6 +25,7 @@ llm:
   generator: "ollama"
   use_ollama: true
   ollama_api_url: "http://ollama:11434"
+  default_model: "deepseek-r1:7b"
   ollama_models:
     - "deepseek-r1:1.5b"
     - "deepseek-r1:7b" 
@@ -62,10 +63,4 @@ tracing:
 metrics:
   enabled: true
   prometheus_exporter: true
-  service_name: "wrag-app"
-
-# Docker and build settings
-docker:
-  ollama_models:
-    - "deepseek-r1:1.5b"
-    - "deepseek-r1:7b" 
+  service_name: "wrag-app" 

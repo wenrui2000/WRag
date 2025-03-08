@@ -9,7 +9,7 @@ def test_settings_default_values():
     assert settings.embedding_dim == 384
     assert settings.use_ollama is True
     assert settings.ollama_api_url == "http://ollama:11434"
-    assert settings.ollama_model == "deepseek-r1:7b"
+    assert settings.default_model == "deepseek-r1:7b"
     assert settings.log_level == "INFO"
     assert settings.haystack_log_level == "INFO"
 
@@ -21,7 +21,7 @@ def test_settings_custom_values():
         "embedding_dim": 768,
         "use_ollama": False,
         "ollama_api_url": "http://custom:11434",
-        "ollama_model": "llama2",
+        "default_model": "llama2",
         "log_level": "DEBUG",
         "haystack_log_level": "DEBUG"
     }

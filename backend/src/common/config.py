@@ -43,9 +43,14 @@ class Settings(BaseSettings):
     generator: str = Field(default="ollama", description="Generator to use")
     use_ollama: bool = Field(default=True, description="Use Ollama for LLM")
     ollama_api_url: str = Field(default="http://ollama:11434", description="Ollama API URL")
-    ollama_model: str = Field(
+    default_model: str = Field(
         default=OllamaModel.DEEPSEEK_7B.value, 
-        description="Ollama model to use (deepseek-r1:1.5b or deepseek-r1:7b)"
+        description="Default Ollama model to use for inference"
+    )
+    # List of Ollama models to pull during build
+    ollama_models: List[str] = Field(
+        default=["deepseek-r1:1.5b", "deepseek-r1:7b"],
+        description="Ollama models to pull during build"
     )
     
     # Embedding settings
@@ -87,12 +92,6 @@ class Settings(BaseSettings):
         description="Path to file storage"
     )
     
-    # Docker settings
-    ollama_models: List[str] = Field(
-        default=["deepseek-r1:1.5b", "deepseek-r1:7b"],
-        description="Ollama models to pull during build"
-    )
-    
     # Raw YAML config for custom settings
     raw_yaml_config: Dict[str, Any] = Field(
         default_factory=dict,
@@ -108,12 +107,11 @@ class Settings(BaseSettings):
             raise ValueError(f"Invalid log level. Must be one of: {', '.join(valid_levels)}")
         return upper_v
         
-    @field_validator('ollama_model')
+    @field_validator('default_model')
     @classmethod
-    def validate_ollama_model(cls, v: str) -> str:
-        valid_models = [model.value for model in OllamaModel]
-        if v not in valid_models:
-            raise ValueError(f"Invalid Ollama model. Must be one of: {', '.join(valid_models)}")
+    def validate_default_model(cls, v: str) -> str:
+        # This allows any model from the ollama_models list
+        # No longer using the hardcoded enum as the source of truth
         return v
 
     class Config:
@@ -180,7 +178,7 @@ def yaml_to_env_vars(yaml_config: Dict[str, Any]) -> None:
         "llm.generator": "GENERATOR",
         "llm.use_ollama": "USE_OLLAMA",
         "llm.ollama_api_url": "OLLAMA_API_URL",
-        "llm.ollama_model": "OLLAMA_MODEL",
+        "llm.default_model": "DEFAULT_MODEL",
         "embedding.model": "EMBEDDING_MODEL",
         "embedding.dim": "EMBEDDING_DIM",
         "document.split_by": "SPLIT_BY",

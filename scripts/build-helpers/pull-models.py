@@ -29,11 +29,11 @@ def load_config():
 
 def pull_models(config):
     """Pull Ollama models specified in the config."""
-    if not config or 'docker' not in config or 'ollama_models' not in config['docker']:
+    if not config or 'llm' not in config or 'ollama_models' not in config['llm']:
         print("No models specified in config.yml. Using default models.")
         models = ["deepseek-r1:1.5b", "deepseek-r1:7b"]
     else:
-        models = config['docker']['ollama_models']
+        models = config['llm']['ollama_models']
     
     # Ensure models is a list
     if not isinstance(models, list):
