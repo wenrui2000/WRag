@@ -69,6 +69,13 @@ Access the Prometheus UI at [http://localhost:9091](http://localhost:9091) to vi
 - File upload and indexing operations
 - Search performance metrics
 
+### Accessing Grafana Dashboards
+
+Access the Grafana UI at [http://localhost:3001](http://localhost:3001) (login with username `admin` and password `admin`) to visualize Prometheus metrics through interactive dashboards. Grafana provides:
+- Pre-configured dashboards for application metrics
+- The ability to create custom visualizations
+- Advanced analytics for performance monitoring
+
 ## How the Application Works with Docker
 
 When all containers are running, the application architecture works as follows:
@@ -92,6 +99,8 @@ When all containers are running, the application architecture works as follows:
 5. **ollama**: Container for running local LLMs.
 
 6. **prometheus**: Metrics collection and monitoring system. Access the Prometheus UI at http://localhost:9091.
+
+7. **grafana**: Visualization and dashboard platform for monitoring metrics from Prometheus. Access the Grafana UI at http://localhost:3001.
 
 This setup allows for a clean separation of concerns and scalability.
 
@@ -256,6 +265,12 @@ curl -X GET http://localhost:11434/api/tags
 curl -X GET http://localhost:9091/api/v1/status/config
 ```
 
+### Checking if Grafana is running:
+
+```
+curl -X GET http://localhost:3001/api/health
+```
+
 ### Docker Logs:
 
 ```
@@ -264,6 +279,8 @@ docker-compose logs -f query_service
 docker-compose logs -f elasticsearch
 docker-compose logs -f qdrant
 docker-compose logs -f ollama
+docker-compose logs -f prometheus
+docker-compose logs -f grafana
 ```
 
 ### Removing all Docker containers, images, and volumes
@@ -347,6 +364,54 @@ The Prometheus UI is available at [http://localhost:9091](http://localhost:9091)
 - Create graphs and visualizations
 - Set up alerts (when configured)
 - View target health status
+
+#### Visualizing Metrics with Grafana
+
+For enhanced visualization and dashboarding of Prometheus metrics, the application includes Grafana integration.
+
+##### Accessing Grafana UI
+
+The Grafana dashboard is available at [http://localhost:3001](http://localhost:3001), with the following default credentials:
+- Username: `admin`
+- Password: `admin`
+
+##### Pre-configured Dashboards
+
+Grafana comes pre-configured with:
+- A Prometheus data source connected to your Prometheus instance
+- A sample dashboard showing key metrics from your application:
+  - HTTP request rates
+  - Haystack component metrics
+
+##### Creating Custom Dashboards
+
+You can create your own custom dashboards in Grafana to visualize specific metrics:
+
+1. Log in to Grafana at [http://localhost:3001](http://localhost:3001)
+2. Click on "Dashboards" in the left sidebar
+3. Click "New" and select "New Dashboard"
+4. Use the "Add visualization" button to create panels using Prometheus metrics
+5. Configure panels with appropriate PromQL queries
+6. Save your dashboard for future use
+
+##### Example PromQL Queries for Grafana
+
+When creating panels in Grafana, you can use queries like:
+
+1. Request rate by service:
+   ```
+   sum(rate(http_requests_total[5m])) by (service)
+   ```
+
+2. Average response time:
+   ```
+   sum(rate(http_request_duration_seconds_sum[5m])) by (handler) / sum(rate(http_request_duration_seconds_count[5m])) by (handler)
+   ```
+
+3. Error rate:
+   ```
+   sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))
+   ```
 
 #### Available Metrics
 

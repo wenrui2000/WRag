@@ -229,6 +229,28 @@ services:
       retries: 3
       start_period: 10s
 
+  grafana:
+    image: grafana/grafana:10.2.3
+    ports:
+      - "3001:3000" # Grafana UI (External:Internal)
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
 networks:
   default:
     name: wrag-app
@@ -240,3 +262,4 @@ volumes:
   qdrant-data:
   mysql-data:
   prometheus-data:
+  grafana-data:

@@ -60,9 +60,6 @@ def setup_tracer(service_name):
         # Add the exporter to the tracer provider
         tracer_provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
         
-        # Add a console exporter for debugging
-        from opentelemetry.sdk.trace.export import ConsoleSpanExporter
-        # tracer_provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
         
         # Set the global tracer provider
         trace.set_tracer_provider(tracer_provider)
