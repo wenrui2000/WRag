@@ -90,13 +90,13 @@ def create_query_pipeline(model: str = None):
     llm_model = model if model else settings.default_model
     logger.info(f"Using LLM model: {llm_model}")
     
+    # Use generation kwargs from config settings
+    logger.info(f"Using generation kwargs from config: {settings.generation_kwargs}")
+    
     llm = OllamaGenerator(
         model=llm_model,
         url=settings.ollama_api_url,
-        generation_kwargs={
-            "temperature": 0.7,
-            "num_predict": 500  # num_predict is the Ollama equivalent of max_tokens
-        }
+        generation_kwargs=settings.generation_kwargs
     )
     
     # 8. Create answer builder

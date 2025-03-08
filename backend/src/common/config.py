@@ -53,6 +53,12 @@ class Settings(BaseSettings):
         description="Ollama models to pull during build"
     )
     
+    # Generation parameters for LLM
+    generation_kwargs: Dict[str, Any] = Field(
+        default_factory=lambda: {"temperature": 0.7, "num_predict": 2048},
+        description="Generation parameters for LLM"
+    )
+    
     # Embedding settings
     embedding_model: str = Field(default="intfloat/multilingual-e5-base", description="Model to use for embeddings")
     embedding_dim: int = Field(default=768, description="Embedding dimension")
@@ -238,6 +244,11 @@ def load_settings():
         
         # Store the raw YAML config for any custom settings
         settings_obj.raw_yaml_config = yaml_config
+        
+        # Handle nested dictionaries like generation_kwargs
+        if 'llm' in yaml_config and 'generation_kwargs' in yaml_config['llm']:
+            settings_obj.generation_kwargs = yaml_config['llm']['generation_kwargs']
+            print(f"Loaded generation_kwargs from config: {settings_obj.generation_kwargs}")
         
         return settings_obj
     except ValidationError as e:

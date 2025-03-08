@@ -167,6 +167,7 @@ MySQL serves as our persistence store with the following scaling considerations:
 - Enhanced document processing capabilities (more formats, improved chunking)
 - Custom metrics and performance optimizations
 - Advanced RAG techniques (hypothetical document embeddings, reranking)
+- Multi-language support: Identify language for file and prompt input, and select corresponding models for specific languages, including appropriate embedding models and text splitters optimized for each supported language
 
 ## 7. Conclusion
 

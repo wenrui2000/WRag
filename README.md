@@ -4,15 +4,14 @@ This project is a Retrieval-Augmented Generation (RAG) application built with Ha
 
 For detailed architectural decisions and technical design, see the [Technical Design Document](./techdesign.md).
 
-### Architecture Components
-
-- **Frontend**: React application with Bootstrap providing an intuitive UI for document uploads and queries
-- **Backend**: FastAPI services powered by Haystack 2 for document processing and RAG capabilities 
-- **Storage**: Elasticsearch for document storage and Qdrant for vector embeddings
-- **LLM Integration**: Ollama for local model hosting and inference
-- **Observability**: OpenTelemetry, Jaeger, Prometheus, and Grafana for monitoring
 
 ## Quick Start
+
+### Language Support
+
+**Important**: Currently, this service only supports **English** documents and queries. The embedding model and text splitter components have not been adapted for Chinese or other languages. Documents in non-English languages may result in suboptimal chunking and retrieval performance.
+
+
 
 To get started with this application:
 
@@ -98,6 +97,7 @@ The application provides a simple web interface at [http://localhost:9090](http:
 
 Note that uploading large files may take time as documents are processed and indexed synchronously.
 
+
 ### Changing LLM Models
 
 To change which model is used for inference:
@@ -127,6 +127,14 @@ The application includes comprehensive tools for monitoring and debugging:
   - Pre-configured dashboards for application metrics
   - Monitors HTTP requests, document processing, and query performance
   - Predefined dashboard: [wrag-metrics](http://localhost:3001/d/wrag-metrics/wrag-application-metrics?orgId=1&refresh=5s)
+
+## Architecture Components
+
+- **Frontend**: React application with Bootstrap providing an intuitive UI for document uploads and queries
+- **Backend**: FastAPI services powered by Haystack 2 for document processing and RAG capabilities 
+- **Storage**: Elasticsearch for document storage and Qdrant for vector embeddings
+- **LLM Integration**: Ollama for local model hosting and inference
+- **Observability**: OpenTelemetry, Jaeger, Prometheus, and Grafana for monitoring
 
 ### Jaeger Tracing
 
@@ -200,44 +208,7 @@ For the RAG application, Jaeger is particularly valuable for:
 - Use **Timeline Expand/Collapse** controls to focus on specific parts of a complex trace
 - Save complex search queries using **Search** presets for later reuse
 
-## Building and Running Locally
 
-The project includes a Makefile with various commands to simplify development and deployment:
-
-```bash
-# Build and start all services (default target)
-make
-
-# Run all tests in the backend
-make test
-
-# Build all Docker images
-make build
-
-# Start all services in detached mode
-make start
-
-# Stop all services and remove containers
-make stop
-
-# Restart all running services
-make restart
-
-# Clean up Docker resources (volumes, unused images)
-make clean
-
-# Set up a local development environment
-make setup
-
-# Rebuild and restart a specific service
-make rebuild SERVICE=indexing_service
-
-# View logs for all services or a specific service
-make logs
-make logs SERVICE=query_service
-```
-
-These commands provide a convenient way to manage the application without having to remember complex Docker commands.
 
 ## Troubleshooting
 
