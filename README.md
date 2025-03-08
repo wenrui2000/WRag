@@ -126,6 +126,7 @@ The application includes comprehensive tools for monitoring and debugging:
 - **Grafana**: Access dashboards at [http://localhost:3001](http://localhost:3001) (login: admin/admin)
   - Pre-configured dashboards for application metrics
   - Monitors HTTP requests, document processing, and query performance
+  - Predefined dashboard: [wrag-metrics](http://localhost:3001/d/wrag-metrics/wrag-application-metrics?orgId=1&refresh=5s)
 
 ### Jaeger Tracing
 
