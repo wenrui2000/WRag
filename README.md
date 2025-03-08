@@ -42,13 +42,12 @@ To get started with this application:
      generator: "ollama"  # Use either "ollama" or "openai"
      use_ollama: true
      ollama_api_url: "http://ollama:11434"
-     default_model: "llama3:8b"  # This model will be used for inference
+     default_model: "deepseek-r1:7b"  # This model will be used for inference
      # List all models you want available in your application
      ollama_models:
        - "deepseek-r1:1.5b"  # Smaller model (faster)
-       - "llama3:8b"         # Balanced performance
-       - "mistral:7b"        # Alternative option
-       - "gemma:7b"          # Add or remove models as needed
+       - "deepseek-r1:7b"         # Balanced performance
+       - "qwq:32b"        # best reasoning
    
    # Embedding model settings
    embedding:
@@ -63,6 +62,10 @@ To get started with this application:
    ```
 
 4. Start all services using Docker Compose:
+   ```
+   docker-compose build
+   ```
+   after the first build, use
    ```
    docker-compose up -d
    ```
