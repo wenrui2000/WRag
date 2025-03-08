@@ -1,6 +1,6 @@
 ## Overview
 
-This project is a Retrieval-Augmented Generation (RAG) application built with Haystack 2. It demonstrates how to create a functional search and generative question-answering system with a user-friendly interface.
+This project is a Retrieval-Augmented Generation (RAG) application built with Haystack 2.
 
 For detailed architectural decisions and technical design, see the [Technical Design Document](./techdesign.md).
 
